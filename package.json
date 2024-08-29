@@ -2,7 +2,7 @@
   "name": "napaleon-slot",
   "version": "1.0.0",
   "description": "Napaleon Slot",
-  "main": "src/app.js",
+  "main": "src/app2.js",
   "scripts": {
     "build": "webpack",
     "watch": "webpack --watch",
