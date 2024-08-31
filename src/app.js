@@ -13,9 +13,15 @@ import {
 } from 'pixi.js';
 
 
-(async () => {
-    // Create a new application
-    const app = new Application();
+
+const REEL_WIDTH = 160;
+const SYMBOL_SIZE = 150;
+let app
+let slotTextures;
+
+async function initializeApplication() {
+    app = new Application();
+    globalThis.__PIXI_APP__ = app;
 
     // Initialize the application
     await app.init({background: '#1099bb', resizeTo: window - 500});
@@ -31,16 +37,19 @@ import {
         'https://pixijs.com/assets/skully.png',
     ]);
 
-    const REEL_WIDTH = 160;
-    const SYMBOL_SIZE = 150;
-
-    // Create different slot symbols
-    const slotTextures = [
+    slotTextures = [
         Texture.from('https://pixijs.com/assets/eggHead.png'),
         Texture.from('https://pixijs.com/assets/flowerTop.png'),
         Texture.from('https://pixijs.com/assets/helmlok.png'),
         Texture.from('https://pixijs.com/assets/skully.png'),
     ];
+
+
+}
+
+(async () => {
+    await initializeApplication();
+
     const reel1 = [0, 1, 2, 3, 0, 1]
     const reel2 = [0, 1, 2, 3, 0, 2]
     const reel3 = [0, 1, 2, 3, 0, 3]
@@ -53,7 +62,7 @@ import {
     const reelContainer = new Container();
 
     function createSlotElements(reelsNewSymbols, newPositionY) {
-        if(reelsNewSymbols) {
+        if (reelsNewSymbols) {
             reelsSymbols = reelsNewSymbols;
         }
         for (let i = 0; i < 5; i++) {
@@ -73,7 +82,6 @@ import {
             reel.blur.blurX = 0;
             reel.blur.blurY = 0;
             rc.filters = [reel.blur];
-
             // Build the symbols
             for (let j = 0; j < 4; j++) {
                 const symbol = new Sprite(slotTextures[reelsSymbols[i][j]]);
@@ -81,8 +89,8 @@ import {
 
                 if (newPositionY) {
                     symbol.y = j * SYMBOL_SIZE + newPositionY;
-                } else{
-                symbol.y = j * SYMBOL_SIZE;
+                } else {
+                    symbol.y = j * SYMBOL_SIZE;
 
                 }
 
@@ -139,9 +147,14 @@ import {
     });
 
     const playText = new Text('Spin the wheels!', style);
+    let bid = 10
+    const balance = new Text ('1000', style);
+    balance.x =  Math.round((bottom.width - balance.width) );
+    balance.y = app.screen.height - margin + Math.round((margin - playText.height) / 2);
 
     playText.x = Math.round((bottom.width - playText.width) / 2);
     playText.y = app.screen.height - margin + Math.round((margin - playText.height) / 2);
+    bottom.addChild(balance);
     bottom.addChild(playText);
 
 
@@ -152,31 +165,44 @@ import {
     bottom.eventMode = 'static';
     bottom.cursor = 'pointer';
     bottom.addListener('pointerdown', () => {
-        startPlay();
+        startPlay(bid);
     });
 
     let running = false;
 
-    // Function to start playing.
-    function startPlay() {
+    function startPlay(bid) {
         if (running) return;
         running = true;
+        let withdrawingMoneyInterval =  setInterval(() => {
+            if (bid > 0) {
+                bid -= 1
+                balance.text -= 1
+            } else {
+                clearInterval(withdrawingMoneyInterval);
+            }
+        }, 50);
 
-        for (let i = 0; i < reels.length; i++) {
-            const r = reels[i];
-            const extra = Math.floor(Math.random() * 3);
-            const target = r.position + 10 + i * 5 + extra;
-            const time = 2500 + i * 600 + extra * 600;
-
-
-        }
     }
 
     const reeelsHeight = reelContainer.height
 
     // Reels done handler.
     function reelsComplete() {
+        isCreateNewSlotElements = false
+        for (let r = 0; r < reels.length; r++) {
+            reels[r].container.y = 0
+            for (let j = 0; j < reels.length -1; j++) {
+                reels[r].symbols[j].y = j * REEL_WIDTH;
+            }
+        }
         running = false;
+
+    }
+
+    function  removeReels (maxIteration) {
+        for (let k = 0; k < maxIteration; k++) {
+            reelContainer.removeChild(reels[k].container);
+        }
     }
 
 
@@ -195,47 +221,29 @@ import {
         for (let i = 0; i < reels.length; i++) {
             const r = reels[i];
 
-
-            // console.log(reels)
-            r.blur.blurY = (r.position - r.previousPosition) * 8;
-            r.previousPosition = r.position;
-            // console.log(reels[0].symbols[0].y)
-            // Update symbol positions on reel.
             for (let j = 0; j < r.symbols.length; j++) {
                 if (running) {
-                    reels[i].container.y  += velocity
+                    reels[i].container.y += velocity
                     const s = r.symbols[j];
                     const firstElement = reels[0].symbols[0].y
-                        // s.y += velocity;
+
 
                     //circular rotate reels
                     if (reels[i].container.y > reeelsHeight) {
-                        // reels[i].symbols[j].y = -SYMBOL_SIZE
 
 
-                        if(!isCreateNewSlotElements) {
+
+                        if (!isCreateNewSlotElements) {
+                            removeReels(reelContainer.children.length)
                             reels = []
+
                             createSlotElements(reelsSymbols, -reeelsHeight)
                             isCreateNewSlotElements = true
                         } else {
-                            running = false
+
+                            reelsComplete()
                         }
                     }
-                    // if(reels[0].symbols[0].isOutOfScreen) {
-                    //     reels = []
-                    //
-                    //     if(!isCreateNewSlotElements) {
-                    //     createSlotElements(reelsSymbols, -reeelsHeight)
-                    //         isCreateNewSlotElements = true
-                    //     }
-                    // }
-
-                    // if(reels[0].symbols[3].isOutOfScreen && isCreateNewSlotElements) {
-                    //     running = false
-                    // }
-                } else {
-
-
                 }
             }
         }
